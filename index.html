@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Budget Reçus</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="header">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">€</div>
+      <div>
+        <h1>Budget Reçus</h1>
+        <div class="sub" id="status">Local • OCR sur l’iPhone • Hors-ligne après 1ère ouverture</div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="btnImport">Importer</button>
+      <button class="btn" id="btnExport">Exporter</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="row">
+        <div class="field">
+          <label>Carte</label>
+          <select id="cardSelect"></select>
+        </div>
+        <button class="btn secondary" id="btnAddCard">+ Carte</button>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Mois</label>
+          <input type="month" id="monthSelect" />
+        </div>
+        <button class="btn secondary" id="btnEditBudget">Modifier budget</button>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="k">Budget du mois</div>
+          <div class="v" id="kpiBudget">—</div>
+        </div>
+        <div class="kpi">
+          <div class="k">Disponible (avec report)</div>
+          <div class="v" id="kpiAvailable">—</div>
+        </div>
+        <div class="kpi">
+          <div class="k">Dépensé</div>
+          <div class="v" id="kpiSpent">—</div>
+        </div>
+        <div class="kpi strong">
+          <div class="k">Reste / report fin de mois</div>
+          <div class="v" id="kpiRollover">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="row spaceBetween">
+        <div>
+          <h2>Dépenses</h2>
+          <div class="muted" id="emptyState">Aucune dépense pour ce mois.</div>
+        </div>
+
+        <label class="fileBtn">
+          📸 Scanner un reçu
+          <input id="receiptInput" type="file" accept="image/*" capture="environment" />
+        </label>
+      </div>
+
+      <div class="progress" id="progressWrap" hidden>
+        <div class="progressText" id="progressText">OCR…</div>
+        <div class="progressBar"><div id="progressBarFill"></div></div>
+      </div>
+
+      <div id="expensesList" class="list"></div>
+    </section>
+  </main>
+
+  <!-- Modal Validation OCR -->
+  <div class="modalBackdrop" id="modalBackdrop" hidden></div>
+  <div class="modal" id="ocrModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle" hidden>
+    <div class="modalHeader">
+      <div>
+        <div class="modalTitle" id="modalTitle">Valider la dépense</div>
+        <div class="modalSub">Corrige si besoin, puis enregistre.</div>
+      </div>
+      <button class="iconBtn" id="modalClose" aria-label="Fermer">✕</button>
+    </div>
+
+    <div class="modalBody">
+      <div class="grid2">
+        <div class="field">
+          <label>Commerçant</label>
+          <input id="mMerchant" type="text" placeholder="ex : Carrefour" />
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input id="mDate" type="date" />
+        </div>
+        <div class="field">
+          <label>Montant (€)</label>
+          <input id="mAmount" type="number" step="0.01" placeholder="ex : 23.90" />
+        </div>
+        <div class="field">
+          <label>Note (optionnel)</label>
+          <input id="mNote" type="text" placeholder="ex : courses" />
+        </div>
+      </div>
+
+      <details class="raw">
+        <summary>Voir le texte OCR (optionnel)</summary>
+        <pre id="mRaw"></pre>
+      </details>
+    </div>
+
+    <div class="modalFooter">
+      <button class="btn secondary" id="btnCancel">Annuler</button>
+      <button class="btn danger" id="btnDiscard">Jeter</button>
+      <button class="btn primary" id="btnSave">Enregistrer</button>
+    </div>
+  </div>
+
+  <!-- OCR (Tesseract.js) -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
+    }
+  </script>
+</body>
+</html>
