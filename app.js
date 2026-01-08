@@ -279,10 +279,41 @@ function showProgress(show, text = "", pct = 0) {
 function parseAmount(text) {
   const moneyRegex = /(\d{1,3}(?:[ .]\d{3})*(?:[.,]\d{2}))/g; // 1 234,56
   const toNumber = (s) => {
-    const v = s.replace(/ /g, "").replace(/\./g, "").replace(",", ".");
-    const n = Number(v);
-    return Number.isFinite(n) ? n : null;
-  };
+  // Nettoyage de base
+  let v = String(s).trim().replace(/\s/g, "");
+
+  const hasComma = v.includes(",");
+  const hasDot = v.includes(".");
+
+  // Cas 1 : il y a virgule ET point → on considère que le dernier séparateur est le décimal
+  // Ex: 1.234,56 (FR) ou 1,234.56 (US)
+  if (hasComma && hasDot) {
+    const lastComma = v.lastIndexOf(",");
+    const lastDot = v.lastIndexOf(".");
+    const decSep = lastComma > lastDot ? "," : ".";
+    const thouSep = decSep === "," ? "." : ",";
+
+    v = v.split(thouSep).join("");        // retire séparateur milliers
+    v = v.replace(decSep, ".");           // met décimal en point
+  }
+  // Cas 2 : seulement virgule → format FR classique
+  else if (hasComma) {
+    v = v.replace(",", ".");
+  }
+  // Cas 3 : seulement point → peut être décimal (264.98) OU milliers (1.234)
+  else if (hasDot) {
+    // Si exactement 2 chiffres après le point -> décimal
+    if (/\.\d{2}$/.test(v)) {
+      // on garde le point
+    } else {
+      // sinon, on suppose que c'est un séparateur de milliers
+      v = v.replace(/\./g, "");
+    }
+  }
+
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 
   const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   for (const l of lines) {
