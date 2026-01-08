@@ -104,14 +104,21 @@ async function hydrate() {
 
   if (state.cards.length === 0) {
     const cardId = uid();
-    state.cards = [{ id: cardId, name: "Carte parents" }];
+    state.cards = [{ id: cardId, name: "Carte parents", startMonth: state.currentMonth }];
     state.currentCardId = cardId;
     state.budgets[cardId] = {};
     state.budgets[cardId][state.currentMonth] = DEFAULT_BUDGET;
     await persist();
   }
 
-  if (!state.currentCardId) state.currentCardId = state.cards[0].id;
+  
+  // Ensure every card has a startMonth to prevent infinite rollover accumulation
+  for (const c of state.cards) {
+    if (!c.startMonth) c.startMonth = state.currentMonth;
+    if (!state.budgets[c.id]) state.budgets[c.id] = {};
+  }
+
+if (!state.currentCardId) state.currentCardId = state.cards[0].id;
   if (!state.budgets[state.currentCardId]) state.budgets[state.currentCardId] = {};
   if (typeof state.budgets[state.currentCardId][state.currentMonth] !== "number") {
     state.budgets[state.currentCardId][state.currentMonth] = DEFAULT_BUDGET;
@@ -137,12 +144,20 @@ function sumExpenses(cardId, ym) {
 // Memoized rollover for performance
 function buildRolloverMemo(cardId) {
   const memo = new Map();
+  const card = state.cards.find(c => c.id === cardId);
+  const startMonth = card?.startMonth || state.currentMonth;
+
   function roll(ym, depth = 0) {
+    // Base case: before the card started, carryover is zero.
+    if (ym < startMonth) return 0;
+
     if (depth > 120) return 0;
     if (memo.has(ym)) return memo.get(ym);
+
     const pm = prevMonth(ym);
     const avail = getBudget(cardId, ym) + roll(pm, depth + 1);
     const out = avail - sumExpenses(cardId, ym);
+
     memo.set(ym, out);
     return out;
   }
@@ -337,6 +352,18 @@ function openModal(draft) {
 
   const isEdit = draft.mode === "edit";
   $("modalTitle").textContent = isEdit ? "Modifier la dépense" : "Valider la dépense";
+  // If receipt date belongs to another month than the one selected, warn the user.
+  const receiptMonth = (draft.dateISO || "").slice(0,7);
+  const selectedMonth = state.currentMonth;
+  const sub = document.querySelector(".modalSub");
+  if (sub) {
+    if (!isEdit && receiptMonth && receiptMonth !== selectedMonth) {
+      sub.textContent = `Le reçu semble daté de ${receiptMonth} (mois sélectionné: ${selectedMonth}). Tu peux corriger la date si besoin.`;
+    } else {
+      sub.textContent = "Corrige si besoin, puis enregistre.";
+    }
+  }
+
   $("mMerchant").value = draft.merchant || "";
   $("mAmount").value = (draft.amount ?? "") === 0 && !isEdit ? "" : (draft.amount ?? "");
   $("mDate").value = (draft.dateISO || new Date().toISOString().slice(0,10)).slice(0,10);
@@ -427,7 +454,7 @@ async function addCard() {
   const name = prompt("Nom de la carte :");
   if (!name) return;
   const id = uid();
-  state.cards.push({ id, name: name.trim() });
+  state.cards.push({ id, name: name.trim(), startMonth: state.currentMonth });
   state.budgets[id] = {};
   state.budgets[id][state.currentMonth] = DEFAULT_BUDGET;
   state.currentCardId = id;
@@ -515,8 +542,7 @@ async function init() {
       if (typeof state.budgets[state.currentCardId][ym] !== "number") {
         state.budgets[state.currentCardId][ym] = getBudget(state.currentCardId, ym);
       }
-      // If user scanned a receipt from another month, jump there for clarity
-      state.currentMonth = ym;
+      // Keep the current selected month to avoid the feeling that previous expenses disappeared.
     }
 
     await persist();
